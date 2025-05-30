@@ -254,16 +254,33 @@ impl TileStorage {
                 Ok(result.into_iter())
             }
             TileStorageData::Dense { tiles, size } => {
-                if min.x < 0 || min.y < 0 || max.x >= size.x as i32 || max.y >= size.y as i32 {
-                    return Err(TileStorageError::OutOfBounds { x: min.x, y: min.y });
-                }
                 let rect: URect = rect.as_urect();
                 let width = rect.size().x as usize;
                 Ok((rect.min.y..rect.max.y)
                     .flat_map(move |row| {
-                        let start = row as usize * size.x as usize + rect.min.x as usize;
-                        let end = start + width;
-                        tiles[start..end].iter().map(|opt| opt.as_ref())
+                        if row >= size.y {
+                            vec![None; width].into_iter()
+                        } else {
+                            let row_start = row as usize * size.x as usize;
+                            let slice_start = rect.min.x as usize;
+                            let slice_end = (rect.min.x + width as u32).min(size.x) as usize;
+
+                            if slice_start >= size.x as usize {
+                                vec![None; width].into_iter()
+                            } else {
+                                let actual_start = row_start + slice_start;
+                                let actual_end = row_start + slice_end;
+                                let in_bounds_count = slice_end - slice_start;
+                                let out_of_bounds_count = width - in_bounds_count;
+
+                                tiles[actual_start..actual_end]
+                                    .iter()
+                                    .map(|opt| opt.as_ref())
+                                    .chain(std::iter::repeat(None).take(out_of_bounds_count))
+                                    .collect::<Vec<_>>()
+                                    .into_iter()
+                            }
+                        }
                     })
                     .collect::<Vec<_>>()
                     .into_iter())
@@ -278,7 +295,7 @@ impl TileStorage {
         let chunk_size = self.chunk_size;
         let chunk_rect = IRect::from_corners(
             chunk_position * chunk_size,
-            (chunk_position + IVec2::splat(1)) * chunk_size,
+            (chunk_position + IVec2::ONE) * chunk_size,
         );
 
         self.iter_sub_rect(chunk_rect)

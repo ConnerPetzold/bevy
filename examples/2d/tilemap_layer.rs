@@ -26,24 +26,21 @@ struct UpdateTimer(Timer);
 fn setup(mut commands: Commands, assets: Res<AssetServer>) {
     let mut rng = ChaCha8Rng::seed_from_u64(42);
     let chunk_size = UVec2::splat(32);
-    let mut tile_storage = TileStorage::sparse();
+    let mut tile_storage = TileStorage::dense(UVec2::splat(50));
     tile_storage.set_chunk_size(chunk_size);
 
-    tile_storage.fill_rect_with(
-        IRect::from_corners(IVec2::splat(-32), IVec2::splat(32)),
-        |_| {
-            let i = rng.gen_range(0..TILESET_SIZE + 1);
-            if i == 0 {
-                None
-            } else {
-                Some(TileData {
-                    tileset_index: i - 1,
-                    color: Color::srgba(1.0, 1.0, 1.0, 0.2),
-                    visible: true,
-                })
-            }
-        },
-    );
+    tile_storage.fill_with(|| {
+        let i = rng.gen_range(0..TILESET_SIZE + 1);
+        if i == 0 {
+            None
+        } else {
+            Some(TileData {
+                tileset_index: i - 1,
+                color: Color::srgba(1.0, 1.0, 1.0, 0.2),
+                visible: true,
+            })
+        }
+    });
 
     commands.spawn((
         TilemapLayer::default(),
@@ -79,8 +76,8 @@ fn update_tilemap_layer(time: Res<Time>, mut query: Query<(&mut TileStorage, &mu
         if timer.just_finished() {
             let mut rng = ChaCha8Rng::from_entropy();
             for _ in 0..50 {
-                let x = rng.gen_range(-32..32);
-                let y = rng.gen_range(-32..32);
+                let x = rng.gen_range(0..50);
+                let y = rng.gen_range(0..50);
                 let i = rng.gen_range(0..TILESET_SIZE + 1);
                 tile_storage.set(
                     IVec2::new(x, y),
